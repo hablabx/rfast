@@ -1,0 +1,26 @@
+  parameter           label            retrieved?    lin/log     gauss/flat    prior 1    prior 2
+    fAr      | r"$f_{\rm Ar}$"       |     n       |   log   |       f      |   1e-10   |   1e+0
+    fN2      | r"$f_{\rm N2}$"       |     y       |   log   |       f      |   1e-10   |   1e+0
+    fO2      | r"$f_{\rm O2}$"       |     y       |   log   |       f      |   1e-10   |   1e+0
+    fH2O     | r"$f_{\rm H2O}$"      |     y       |   log   |       f      |   1e-10   |   1e+0
+    fCO2     | r"$f_{\rm CO2}$"      |     y       |   log   |       f      |   1e-10   |   1e+0
+    fO3      | r"$f_{\rm O3}$"       |     y       |   log   |       f      |   1e-10   |   1e-2
+    fCO      | r"$f_{\rm CO}$"       |     n       |   log   |       f      |   1e-10   |   1e-2
+    fN2O     | r"$f_{\rm N2O}$"      |     n       |   log   |       f      |   1e-10   |   1e-2
+    fCH4     | r"$f_{\rm CH4}$"      |     y       |   log   |       f      |   1e-10   |   1e+0
+    fH2      | r"$f_{\rm H2}$"       |     n       |   log   |       f      |   1e-10   |   1e+0
+    fHe      | r"$f_{\rm He}$"       |     n       |   log   |       f      |   1e-10   |   1e+0
+    pmax     | r"$p_{0}$"            |     y       |   log   |       f      |   1e+0    |   1e+8
+    t0       | r"$T_{0}$"            |     n       |   lin   |       f      |   273.    |   647.
+    As       | r"$A_{\rm s}$"        |     y       |   log   |       f      |   1e-2    |   1e+0
+    mb       | r"$m_{\rm b}$"        |     n       |   lin   |       f      |   2e+0    |   44.0
+    rayb     | r"$\sigma_{\rm b}$"   |     n       |   lin   |       f      |   0.5     |   2.0
+    Rp       | r"$R_{\rm p}$"        |     y       |   log   |       f      |   1e-1    |   1e+1
+    Mp       | r"$M_{\rm p}$"        |     n       |   log   |       f      |   1e-1    |   1e+2
+    gp       | r"$g$"                |     y       |   log   |       f      |   1.      |   25.0
+    dpc      | r"$\Delta p_{\rm c}$" |     y       |   log   |       f      |   1e+0    |   1e+8
+    pt       | r"$p_{\rm t}$"        |     y       |   log   |       f      |   1e+0    |   1e+8
+    tauc0    | r"$\tau_{\rm c}$"     |     y       |   log   |       f      |   1e-3    |   1e+3
+    fc       | r"$f_{\rm c}$"        |     y       |   log   |       f      |   1e-3    |   1e+0
+    a        | r"$a$"                |     n       |   lin   |       f      |   0.5     |   5.0
+    alpha    | r"$\alpha$"           |     n       |   lin   |       f      |   0.      |   180.

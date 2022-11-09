@@ -1,0 +1,255 @@
+# import statements
+import emcee
+import os
+import time
+import sys
+import shutil
+import numpy             as np
+import matplotlib.pyplot as plt
+from multiprocessing     import Pool
+from astropy.io          import ascii
+from rfast_routines      import spectral_grid
+from rfast_routines      import gen_spec
+from rfast_routines      import kernel_convol
+from rfast_routines      import gen_spec_grid
+from rfast_routines      import inputs
+from rfast_routines      import init
+from rfast_routines      import init_3d
+from rfast_atm_routines  import set_gas_info
+from rfast_atm_routines  import setup_atm
+from rfast_opac_routines import init_cloud_optics
+
+# recommended to prevent interference with emcee parallelization
+os.environ["OMP_NUM_THREADS"] = "1"
+
+# get input script filename
+if len(sys.argv) >= 2:
+  filename_scr = sys.argv[1] # if script name provided at command line
+else:
+  filename_scr = input("rfast inputs script filename: ") # otherwise ask for filename
+
+# obtain input parameters from script
+fnr,fnn,fns,dirout,Nlev,pmin,pmax,bg,\
+species_r,f0,rdgas,fnatm,skpatm,colr,colpr,psclr,imix,\
+t0,rdtmp,fntmp,skptmp,colt,colpt,psclt,\
+species_l,species_c,\
+lams,laml,res,regrid,smpl,opdir,\
+Rp,Mp,gp,a,As,em,\
+grey,phfc,w,g1,g2,g3,pt,dpc,tauc0,lamc0,fc,\
+ray,cld,ref,sct,fixp,pf,fixt,tf,p10,fp10,\
+src,\
+alpha,ntg,\
+Ts,Rs,\
+ntype,snr0,lam0,rnd,\
+clr,fmin,mmr,nwalkers,nstep,nburn,thin,restart,progress = inputs(filename_scr)
+
+# input data filename
+fn_dat = fnn + '.dat'
+
+# set info for all radiatively active gases
+Ngas,gasid,mmw0,ray0,nu0,mb,rayb = set_gas_info(bg)
+
+# get initial gas mixing ratios
+mmr0 = False
+if (imix == 1): mmr0 = True
+p,t,z,grav,f,fb,m,nu = setup_atm(Nlev,Ngas,gasid,mmw0,pmin,pmax,
+                                 t0,rdtmp,fntmp,skptmp,colt,colpt,psclt,
+                                 species_r,f0,rdgas,fnatm,skpatm,colr,colpr,psclr,
+                                 mmr0,mb,Mp,Rp,cld,pt,dpc,tauc0,p10,fp10,src,ref,nu0)
+
+# read input data
+data        = ascii.read(dirout+fn_dat,data_start=1,delimiter='|')
+lam         = data['col2'][:]
+dlam        = data['col3'][:]
+dat         = data['col6'][:]
+err         = data['col7'][:]
+
+# save input radius for thermal emission case
+Rpi = Rp
+
+# generate wavelength grids
+Nres             = 3 # no. of res elements to extend beyond grid edges to avoid edge sensitivity (2--4)
+if regrid:
+  lam_hr,dlam_hr = gen_spec_grid(lams,laml,np.float_(res)*smpl,Nres=np.rint(Nres*smpl))
+else:
+  x_low = min(0.01,min(lam)-dlam[0]*Nres) # note: prevent min wavelength of 0 um
+  x_hgh = max(lam)+dlam[-1]*Nres
+  lam_hr,dlam_hr = spectral_grid(x_low,x_hgh,res=lam/dlam*smpl,lamr=lam)
+
+# assign photometric vs. spectroscopic points
+mode           = np.copy(lam_hr)
+mode[:]        = 1
+
+# initialize opacities and convolution kernels
+sigma_interp,cia_interp,ncia,ciaid,kern = init(lam,dlam,lam_hr,species_l,species_c,opdir,pf,tf,mode=mode)
+
+# initialize cloud asymmetry parameter, single scattering albedo, scaled extinction efficiency
+gc,wc,Qc = init_cloud_optics(lam_hr,g1,g2,g3,w,lamc0,grey,cld,opdir)
+tauc     = tauc0*Qc
+
+# initialize disk integration quantities
+threeD   = init_3d(src,ntg)
+
+# min and max center-log ratio, if doing clr retrieval
+if clr:
+  n     = len(f0) + 1
+  ximin = (n-1.)/n*(np.log(fmin) - np.log((1.-fmin)/(n-1.)))
+  ximax = (n-1)/n*(np.log(1-n*fmin) - np.log(fmin))
+
+# log-prior function
+def lnprior(x):
+  TARGETP1
+  TARGETP2
+  TARGETP3
+
+  # sum gaussian priors
+  TARGETP4
+
+  # cloud base pressure
+  if cld:
+    pb = pt + dpc
+  else:
+    pb = -1
+
+  # prior limits
+  TARGETP5 pb <= pmax:
+    return 0.0 + lng
+  return -np.inf
+
+# log-likelihood function
+def lnlike(x):
+
+  # reverts to using Mp if gp is not retrieved
+  gp = -1
+
+  TARGETL1
+  TARGETL2
+  TARGETL3
+  TARGETL4
+  x0 = f0,pmax,Rp,Mp,gp,As,pt,dpc,tauc0,fc,t0,a,gc,wc,Qc,alpha,mb,rayb
+  y  = lam_hr,pmin,Ngas,mmw0,nu0,em,Ts,Rs,ray0,gasid,ncia,ciaid,species_l,species_c,\
+       Rpi,sigma_interp,cia_interp,kern,ray,ref,cld,sct,phfc,fixp,pf,fixt,tf,mmr,\
+       p10,fp10,src,threeD,fntmp,skptmp,colt,colpt,psclt,species_r,fnatm,skpatm,\
+       colr,colpr,psclr,Nlev
+
+  return -0.5*(np.sum((dat-Fx(x0,y))**2/err**2))
+
+# log-probability from Bayes theorem
+def lnprob(x):
+  lp = lnprior(x)
+  if not np.isfinite(lp):
+    return -np.inf
+  return lp + lnlike(x)
+
+# forward model for emcee and analysis purposes; re-packages gen_spec routine
+def Fx(x,y):
+
+  f0,pmax,Rp,Mp,gp,As,pt,dpc,tauc0,fc,t0,a,gc,wc,Qc,alpha,mb,rayb = x
+  lam,pmin,Ngas,mmw0,nu0,em,Ts,Rs,ray0,gasid,ncia,ciaid,species_l,species_c,\
+  Rpi,sigma_interp,cia_interp,kern,ray,ref,cld,sct,phfc,fixp,pf,fixt,tf,mmr,\
+  p10,fp10,src,threeD,fntmp,skptmp,colt,colpt,psclt,species_r,fnatm,skpatm,\
+  colr,colpr,psclr,Nlev = y
+
+  # force isothermal case
+  rdtmp = False
+
+  # force constant mixing ratios case and include all species
+  rdgas     = False
+
+  # initialize atmospheric model
+  p,t,z,grav,f,fb,m,nu = setup_atm(Nlev,Ngas,gasid,mmw0,pmin,pmax,
+                                   t0,rdtmp,fntmp,skptmp,colt,colpt,psclt,
+                                   species_r,f0,rdgas,fnatm,skpatm,colr,colpr,psclr,
+                                   mmr,mb,Mp,Rp,cld,pt,dpc,tauc0,p10,fp10,src,ref,nu0,gp=gp)
+
+  # scale cloud optical depths based on extinction efficiency
+  if cld:
+    tauc = tauc0*Qc
+  else:
+    tauc = np.zeros(len(lam))
+
+  # call forward model
+  F1,F2 = gen_spec(Nlev,Rp,a,As,em,p,t,t0,m,z,grav,Ts,Rs,ray,ray0,rayb,f,fb,
+                   mmw0,mmr,ref,nu,alpha,threeD,
+                   gasid,ncia,ciaid,species_l,species_c,
+                   cld,sct,phfc,fc,pt,dpc,gc,wc,tauc,
+                   src,sigma_interp,cia_interp,lam,pf=pf,tf=tf)
+
+  # degrade resolution
+  F_out = kernel_convol(kern,F2)
+
+  # "distance" scaling for thermal emission case
+  if (src == 'thrm'):
+    F_out = F_out*(Rp/Rpi)**2
+
+  return F_out
+
+# syntax to identify main core of program
+if __name__ == '__main__':
+
+  # test forward model
+  x  = f0,pmax,Rp,Mp,gp,As,pt,dpc,tauc0,fc,t0,a,gc,wc,Qc,alpha,mb,rayb
+  y  = lam_hr,pmin,Ngas,mmw0,nu0,em,Ts,Rs,ray0,gasid,ncia,ciaid,species_l,species_c,\
+       Rpi,sigma_interp,cia_interp,kern,ray,ref,cld,sct,phfc,fixp,pf,fixt,tf,mmr,\
+       p10,fp10,src,threeD,fntmp,skptmp,colt,colpt,psclt,species_r,fnatm,skpatm,\
+       colr,colpr,psclr,Nlev
+  if (src == 'diff' or src == 'scnd' or src == 'cmbn' or src == 'phas'):
+    ylab = 'Planet-to-Star Flux Ratio'
+  if (src == 'thrm'):
+    ylab = r'Specific flux (W/m$^2$/${\rm \mu}$m)'
+  if (src == 'trns'):
+    ylab = r'Transit depth'
+  plt.errorbar(lam, dat, yerr=err, fmt=".k")
+  plt.plot(lam,Fx(x,y))
+  plt.ylabel(ylab)
+  plt.xlabel(r'Wavelength (' + u'\u03bc' + 'm)')
+  plt.savefig(dirout+fnr+'_test.png',format='png',bbox_inches='tight')
+  plt.close()
+
+  # document parameters to file
+  shutil.copy(filename_scr,dirout+fnr+'.log')
+
+  # g(x) after benneke & seager (2012); only needed if doing clr retrieval
+  if clr:
+    gx = np.exp((np.sum(np.log(f0)) + np.log(max(fmin,1-np.sum(f0))))/(len(f0) + 1))
+
+  # retrieved parameters initial guess
+  TARGETG1
+  TARGETG2
+  TARGETG3
+  ndim  = len(guess)
+
+  # create backup / save file; prevent h5 overwrite or check if restart h5 exists
+  if not restart:
+    if os.path.isfile(dirout+fnr+'.h5'):
+      print("rfast warning | major | h5 file already exists")
+      quit()
+    else:
+      backend  = emcee.backends.HDFBackend(dirout+fnr+'.h5')
+      backend.reset(nwalkers, ndim)
+      # initialize walkers as a cloud around guess
+      pos = [guess + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+  else:
+    if not os.path.isfile(dirout+fnr+'.h5'):
+      print("rfast warning | major | h5 does not exist for restart")
+      quit()
+    else:
+      # otherwise initialize walkers from existing backend
+      backend  = emcee.backends.HDFBackend(dirout+fnr+'.h5')
+      pos = backend.get_last_sample()
+
+  # timing
+  tstart = time.time()
+
+  # multiprocessing implementation
+  with Pool() as pool:
+
+    # initialize the sampler
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, backend=backend, pool=pool)
+
+    # run the mcmc
+    sampler.run_mcmc(pos, nstep, progress=progress)
+
+  # timing
+  tend = time.time()
+  print('Retrieval timing (s): ',tend-tstart)

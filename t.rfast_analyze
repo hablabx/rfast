@@ -1,0 +1,208 @@
+# import statements
+import emcee
+import corner
+import h5py
+import sys
+import numpy               as np
+import matplotlib.pyplot   as plt
+from   astropy.table       import Table, Column, MaskedColumn
+from   astropy.io          import ascii
+from   rfast_routines      import spectral_grid
+from   rfast_routines      import gen_spec
+from   rfast_routines      import kernel_convol
+from   rfast_routines      import gen_spec_grid
+from   rfast_routines      import inputs
+from   rfast_routines      import init
+from   rfast_routines      import init_3d
+from   rfast_atm_routines  import set_gas_info
+from   rfast_atm_routines  import setup_atm
+from   rfast_opac_routines import init_cloud_optics
+
+# simple routine for importing emcee chain from h5 file
+def reademceeh5(fn,nburn,thin,flatten=False):
+
+  # open file, important data
+  hf       = h5py.File(fn,'r')
+  grps     = [item for item in hf['mcmc'].values()]
+
+  # extract samples chain and log-likelihood, remove burn-in
+  if (nburn >= 0):
+    samples  = grps[1][nburn:,:,:]
+    lnprob   = grps[2][nburn:,:]
+  else:
+    samples  = grps[1][nburn:,:,:]
+    lnprob   = grps[2][nburn:,:]
+
+  # thin
+  samples  = samples[0::thin,:,:]
+  lnprob   = lnprob[0::thin,:]
+
+  # flatten
+  if flatten:
+    samples  = samples.reshape(samples.shape[0]*samples.shape[1],samples.shape[2])
+    lnprob   = lnprob.reshape(lnprob.shape[0]*lnprob.shape[1])
+
+  # close h5 file
+  hf.close()
+
+  return samples,lnprob
+
+# get input script filename
+if len(sys.argv) >= 2:
+  filename_scr = sys.argv[1]    # if script name provided at command line
+else:
+  filename_scr = input("rfast inputs script filename: ") # otherwise ask for filename
+  sys.argv.append(filename_scr) # poor practice, but prevents bug when importing Fx
+
+# obtain input parameters from script
+fnr,fnn,fns,dirout,Nlev,pmin,pmax,bg,\
+species_r,f0,rdgas,fnatm,skpatm,colr,colpr,psclr,imix,\
+t0,rdtmp,fntmp,skptmp,colt,colpt,psclt,\
+species_l,species_c,\
+lams,laml,res,regrid,smpl,opdir,\
+Rp,Mp,gp,a,As,em,\
+grey,phfc,w,g1,g2,g3,pt,dpc,tauc0,lamc0,fc,\
+ray,cld,ref,sct,fixp,pf,fixt,tf,p10,fp10,\
+src,\
+alpha,ntg,\
+Ts,Rs,\
+ntype,snr0,lam0,rnd,\
+clr,fmin,mmr,nwalkers,nstep,nburn,thin,restart,progress = inputs(filename_scr)
+
+# input data filename
+fn_dat = fnn + '.dat'
+
+# set info for all radiatively active gases
+Ngas,gasid,mmw0,ray0,nu0,mb,rayb = set_gas_info(bg)
+
+# get initial gas mixing ratios
+mmr0 = False
+if (imix == 1): mmr0 = True
+p,t,z,grav,f,fb,m,nu = setup_atm(Nlev,Ngas,gasid,mmw0,pmin,pmax,
+                                 t0,rdtmp,fntmp,skptmp,colt,colpt,psclt,
+                                 species_r,f0,rdgas,fnatm,skpatm,colr,colpr,psclr,
+                                 mmr0,mb,Mp,Rp,cld,pt,dpc,tauc0,p10,fp10,src,ref,nu0)
+
+# read input data
+data        = ascii.read(dirout+fn_dat,data_start=1,delimiter='|')
+lam         = data['col2'][:]
+dlam        = data['col3'][:]
+dat         = data['col6'][:]
+err         = data['col7'][:]
+
+# save input radius for thermal emission case
+Rpi = Rp
+
+# generate wavelength grids
+Nres             = 3 # no. of res elements to extend beyond grid edges to avoid edge sensitivity (2--4)
+if regrid:
+  lam_hr,dlam_hr = gen_spec_grid(lams,laml,np.float_(res)*smpl,Nres=np.rint(Nres*smpl))
+else:
+  x_low = min(0.01,min(lam)-dlam[0]*Nres) # note: prevent min wavelength of 0 um
+  x_hgh = max(lam)+dlam[-1]*Nres
+  lam_hr,dlam_hr = spectral_grid(x_low,x_hgh,res=lam/dlam*smpl,lamr=lam)
+
+# assign photometric vs. spectroscopic points
+mode           = np.copy(lam_hr)
+mode[:]        = 1
+
+# initialize opacities and convolution kernels
+sigma_interp,cia_interp,ncia,ciaid,kern = init(lam,dlam,lam_hr,species_l,species_c,opdir,pf,tf,mode=mode)
+
+# initialize cloud asymmetry parameter, single scattering albedo, scaled extinction efficiency
+gc,wc,Qc = init_cloud_optics(lam_hr,g1,g2,g3,w,lamc0,grey,cld,opdir)
+tauc     = tauc0*Qc
+
+# initialize disk integration quantities
+threeD   = init_3d(src,ntg)
+
+# parameter names
+TARGETA1
+TARGETA2
+TARGETA3
+TARGETA4
+ndim   = len(names)
+
+# import chain data
+samples,lnprob = reademceeh5(dirout+fnr+'.h5',nburn,thin)
+
+# print reduced chi-squared
+lnp_max = np.amax(lnprob)
+pos_max = np.where(lnprob == lnp_max)
+print("Reduced chi-squared: ",-2*lnp_max/(dat.shape[0]-ndim))
+
+# relevant sizes
+nstep    = samples.shape[0]
+nwalkers = samples.shape[1]
+ndim     = samples.shape[2]
+
+# if doing center-log ratio, transform back to mixing ratio
+if clr:
+  TARGETA5
+  xi   = samples[:,:,gind]
+  clrs = np.sum(np.exp(xi),axis=2) + np.exp(-np.sum(xi,axis=2))
+  clrs = np.repeat(clrs[:,:,np.newaxis], len(gind), axis=2)
+  samples[:,:,gind] = np.log10(np.divide(np.exp(samples[:,:,gind]),clrs))
+
+# plot the walker positions in each step
+fig, axes = plt.subplots(ndim, 1, figsize=(8, 4 * ndim), tight_layout=True)
+for i in range(ndim):
+  for j in range(0,nwalkers):
+    axes[i].plot(samples[:,j,i],color="black",linewidth=0.5)
+    axes[i].set_ylabel(str(names[i]))
+    axes[i].set_xlabel('Step')
+plt.savefig(dirout+fnr+'_walkers.png',format='png')
+plt.close()
+
+# plot the corner plot
+fig = corner.corner(samples.reshape((-1,ndim)), quantiles=[0.16, 0.5, 0.84],show_titles=True,
+                    color='xkcd:steel blue', labels=names, truths=truths)
+fig.savefig(dirout+fnr+'_corner.png',format='png',bbox_inches='tight')
+plt.close(fig)
+
+# plot best-fit model and residuals
+gp = -1 # reverts to using Mp if gp not retrieved
+TARGETA6
+TARGETA7
+TARGETA8
+x0 = f0,pmax,Rp,Mp,gp,As,pt,dpc,tauc0,fc,t0,a,gc,wc,Qc,alpha,mb,rayb
+y  = lam_hr,pmin,Ngas,mmw0,nu0,em,Ts,Rs,ray0,gasid,ncia,ciaid,species_l,species_c,\
+     Rpi,sigma_interp,cia_interp,kern,ray,ref,cld,sct,phfc,fixp,pf,fixt,tf,mmr,\
+     p10,fp10,src,threeD,fntmp,skptmp,colt,colpt,psclt,species_r,fnatm,skpatm,\
+     colr,colpr,psclr,Nlev
+
+# determine correct label for y axis
+if (src == 'diff' or src == 'scnd' or src == 'cmbn' or src == 'phas'):
+  ylab = 'Planet-to-Star Flux Ratio'
+if (src == 'thrm'):
+  ylab = r'Specific flux (W/m$^2$/${\rm \mu}$m)'
+if (src == 'trns'):
+  ylab = r'Transit depth'
+
+# best-fit model
+from rfast_retrieve import Fx
+plt.errorbar(lam, dat, yerr=err, fmt=".k")
+plt.plot(lam, Fx(x0,y), drawstyle='steps-mid')
+plt.ylabel(ylab)
+plt.xlabel(r'Wavelength (' + u'\u03bc' + 'm)')
+plt.savefig(dirout+fnr+'_bestfit.png',format='png',bbox_inches='tight')
+plt.close()
+
+# residuals
+plt.errorbar(lam, dat-Fx(x0,y), yerr=err, fmt=".k")
+plt.ylabel(ylab)
+plt.xlabel(r'Wavelength (' + u'\u03bc' + 'm)')
+plt.savefig(dirout+fnr+'_residuals.png',format='png',bbox_inches='tight')
+plt.close()
+
+# compute & print parameters, truths, mean inferred, and 16/84 percentile (credit: arnaud)
+mean = np.zeros(len(names))
+std  = np.zeros([2,len(names)])
+for i in range(len(names)):
+  prcnt    = np.percentile(samples[:,:,i], [16, 50, 84])
+  mean[i]  = prcnt[1]
+  std[0,i] = np.diff(prcnt)[0]
+  std[1,i] = np.diff(prcnt)[1]
+colnames = ['Parameter','Input','Mean','- sig','+ sig']
+data_out = Table([names,truths,mean,std[0,:],std[1,:]],names=colnames)
+ascii.write(data_out,dirout+fnr+'.tab',format='fixed_width',overwrite=True)

@@ -1,0 +1,118 @@
+#
+# filenames and directory for i/o
+#
+fns       = earth_refl_demo             # raw   spectrum filename format [w/o .raw extension]
+fnn       = earth_refl_demo_snr20       # noisy spectrum filename format [w/o .dat extension]
+fnr       = earth_refl_demo_snr20_14dim # output retrieval filename format [w/o .h5 extension]
+dirout    =                             # directory to store all outputs
+#
+# parameter for selecting different spectral models
+#
+src       = diff     # source type: 'diff','thrm','scnd','cmbn','trns','phas'
+#
+# parameters defining atmospheric chemical model
+#
+Nlev      = 50       # number of atmospheric levels
+pmin      = 1.00e0   # top of atmosphere pressure (Pa)
+pmax      = 1.01e5   # bottom of atmosphere pressure (Pa)
+bg        = ar       # background gas ('ar','ch4','co2','h2','he','n2','o2')
+species_r = n2,o2,h2o,o3,co2,ch4                   # radiatively-active species; from: ar,n2,o2,h2o,o3,co2,ch4,h2,he,n2o,co
+f0        = 0.78,0.21,3.e-3,7.e-7,4.e-4,2.e-6      # vmrs for active gases; **same order as species_r**
+rdgas     = False            # read gas volume mixing ratio profiles from file?
+fnatm     = icrccm_62_v2.atm # filename for reading in gas vmr profiles
+skpatm    = 11               # header lines to skip in atm file
+colr      = 10,9,3,5,4,8,6,7 # columns for active gases; overrides fr parameter; **same order as species_r**
+colpr     = 1                # column in fnatm for pressure
+psclr     = 1.               # parameter to multiply fnatm pressure by to scale to Pa
+imix      = 0                # 0 -> mixing ratios are vmrs | 1 -> mixing ratios are mmrs
+#
+# parameters defining thermal structure model
+#
+t0        = 294.     # temperature at pmax (K)
+rdtmp     = False    # read temperature-pressure profile from file? otherwise isotherm at t0
+fntmp     = icrccm_62_v2.atm # filename for reading in gas vmr profiles
+skptmp    = 11       # header lines to skip in thermal structure file
+colt      = 2        # column in fntmp for temperature
+colpt     = 1        # column in fntmp for pressure
+psclt     = 1.       # parameter to multiply fntmp pressure by to scale to Pa
+#
+# define line and cia absorbers
+#
+species_l = ch4,co2,h2o,o2,o3,n2o,co # line absorber species to include: ch4,co2,h2o,o2,o3,n2o,co
+species_c = n2,o2                    # cia cases to include: co2,h2,n2,o2
+#
+# wavelength grid parameters
+#
+lams      = 0.2,0.4,1.0   # short wavelength cutoff (um)
+laml      = 0.4,1.0,1.8   # long wavelength cutoff (um)
+res       = 7,140,40      # spectral resolving power (lam/dlam)
+regrid    = True     # use input spectral grid, or generate new?
+smpl      = 10.      # factor to oversample by in monochromatic calculation
+opdir     =          # path to hi-res opacities folder
+#
+# key planetary parameters
+#
+Rp        = 1.0      # planet radius (Re)
+Mp        = 1.0      # planet mass (Me)
+a         = 1.0      # orbit distance (au)
+As        = 0.05     # surface albedo
+em        = 1.0      # surface emissivity
+#
+# parameters defining cloud model
+#
+grey      = False    # assume grey cloud properties? (false -> blended liq/ice h2o)
+phfc      = 0        # 0 = HG | 1 = TTHG cloud phase function; only if 'phas'
+w         = 1.00     # cloud single scattering albedo, if grey
+g1        = 0.86     # cloud asymmetry parameter (first phase function moment; only if grey)
+g2        = 0.79     # cloud second phase function moment (only if 'phas'; recommend grey = True)
+g3        = 0.67     # cloud third  phase function moment (only if 'phas'; recommend grey = True)
+pt        = 6.e4     # cloud top pressure (Pa)
+dpc       = 1.e4     # cloud thickness (Pa)
+tauc0     = 10.      # cloud extinction optical thickness
+lamc0     = 0.55     # wavelength where tauc0 is specified (um)
+fc        = 0.50     # cloud fraction
+#
+# general flags to toggle on/off certain treatments
+#
+ray       = True     # include Rayleigh scattering?
+cld       = True     # include cloud?
+fixp      = False    # if true, omits pressure interpolation of line opacities
+pf        = 1.e5     # constant pressure (Pa) to use if fixp is true
+fixt      = False    # if true, omits temperature interpolation of opacities
+tf        = 250.     # constant temperature (K) to use if fixt is true
+#
+# parameters and flags specific to transit spectroscopy
+#
+p10       = 1.e3     # reference pressure for planetary radius (Pa), if needed
+fp10      = False    # if true, use p10 as reference pressure for planetary radius
+ref       = True     # include refraction in transit case?
+sct       = True     # include forward scattering correction in transit case?
+#
+# parameters for phase-dependent version of model (src = 'phas')
+#
+alpha     = 0.       # phase angle (deg; used only w/'phas' option)
+ntg       = 10       # number of gauss and tchebyshev points for disk (only w/'phas')
+#
+# host star parameters, used in noise model and 'thrm' or 'trns'
+#
+Ts        = 5780.    # host star effective temperature (K)
+Rs        = 1.0      # host star radius (Rsun)
+#
+# parameters for noise calculation
+#
+ntype     = cerr     # noise type: 'csnr','cnse','cerr','plan','ezod','leak','detr','cppm'
+snr0      = 20.      # SNR at lam0; can have same no. of entries as res
+lam0      = 1.       # (um); can have same no. of entries as res
+rnd       = False    # randomize error bars or simply center on truth?
+#
+# parameters for retrieval calculation
+#
+nwalkers  = 30       # emcee, number of walkers
+nstep     = 50       # emcee, number of steps
+nburn     = 10       # emcee, number of burn-in steps; negative -> count from end
+thin      = 1        # emcee, thinning parameter
+clr       = False    # it true, retrieval operates in center-log ratio
+fmin      = 1e-12    # minimim mixing ratio for clr priors, benneke & seager (2012)
+mmr       = False    # if true, retrieval operates in mass mixing ratios
+progress  = True     # display emcee progress bar?
+restart   = False    # restart emcee from fn + '.h5' backends file?
