@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Robinson"
+  given-names: "Tyler D."
+  orcid: "https://orcid.org/0000-0002-3196-414X"
+- family-names: "Salvador"
+  given-names: "Arnaud"
+  orcid: "https://orcid.org/0000-0001-8106-6164"
+title: "rfast"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2023-07-03
+url: "https://github.com/hablabx/rfast"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Robinson"
+    given-names: "Tyler D."
+    orcid: "https://orcid.org/0000-0002-3196-414X"
+  - family-names: "Salvador"
+    given-names: "Arnaud"
+    orcid: "https://orcid.org/0000-0001-8106-6164"
+  doi: "10.3847/PSJ/acac9a"
+  journal: "Planetary Science Journal"
+  month: 1
+  start: 10 # First page number
+  end: 10 # Last page number
+  title: "Exploring and Validating Exoplanet Atmospheric Retrievals with Solar System Analog Observations"
+  issue: 1
+  volume: 4
+  year: 2023
