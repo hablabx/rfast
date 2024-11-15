@@ -1212,19 +1212,19 @@ def init(lam_lr,dlam_lr,lam_hr,species_l,species_c,opdir,pf,tf,mode=-1):
       p0    = np.zeros(len(temp))
       p0[:] = pf
       sigma = np.power(10,sigma_interp_2D(np.log10(p0),1/temp))
-      sigma_interp_1D = interpolate.interp1d(1/temp,np.log10(sigma),axis=1,assume_sorted=True,fill_value="extrapolate")
+      sigma_interp_1D = interpolate.interp1d(1/temp,np.log10(sigma),axis=1,fill_value="extrapolate")
       sigma_interp = sigma_interp_1D
     elif ( np.any( pf == -1) and np.any( tf != -1) ): # fixed t case
       t0    = np.zeros(len(press))
       t0[:] = tf
       sigma = np.power(10,sigma_interp_2D(np.log10(press),1/t0))
-      sigma_interp_1D = interpolate.interp1d(np.log10(press),np.log10(sigma),axis=1,assume_sorted=True,fill_value="extrapolate")
+      sigma_interp_1D = interpolate.interp1d(np.log10(press),np.log10(sigma),axis=1,fill_value="extrapolate")
       sigma_interp = sigma_interp_1D
     else: # fixed p and t case
       p0     = np.zeros(len(temp))
       p0[:]  = pf
       sigma  = np.power(10,sigma_interp_2D(np.log10(p0),1/temp))
-      sigma_interp_1D = interpolate.interp1d(1/temp,np.log10(sigma),axis=1,assume_sorted=True,fill_value="extrapolate")
+      sigma_interp_1D = interpolate.interp1d(1/temp,np.log10(sigma),axis=1,fill_value="extrapolate")
       sigma0 = np.power(10,sigma_interp_1D(1/tf))
       def sigma_interp_0D():
         return np.log10(sigma0)
@@ -1234,7 +1234,7 @@ def init(lam_lr,dlam_lr,lam_hr,species_l,species_c,opdir,pf,tf,mode=-1):
 
   # read in and down-sample collision-induced absorbers
   tempcia,kcia,ncia,ciaid = cia_read(species_c,lam_hr,opdir)
-  cia_interp              = interpolate.interp1d(1/tempcia,kcia,axis=1,assume_sorted=True,fill_value="extrapolate")
+  cia_interp              = interpolate.interp1d(1/tempcia,kcia,axis=1,fill_value="extrapolate")
 
   return sigma_interp,cia_interp,ncia,ciaid,kern
 #
